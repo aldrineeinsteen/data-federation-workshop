@@ -1,0 +1,98 @@
+# macOS / editor
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local env files and secrets
+.env
+.env.*
+!.env.example
+!*.env.example
+
+# IBM Cloud / generated credentials
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.jks
+*.kubeconfig
+kubeconfig*
+config.json
+
+# COS / HMAC / generated secret files
+.env.cos
+.env.cos.hmac
+.env.demo-db
+.env.setup
+credentials.json
+service-credentials*.json
+
+# Kubernetes generated/rendered manifests
+mc-rendered.yaml
+*-rendered.yaml
+rendered/
+.generated/
+tmp/
+
+# Helm
+charts/*.tgz
+Chart.lock
+
+# Logs
+*.log
+logs/
+nohup.out
+
+# Local data
+data/
+.local-data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Spark / Java
+.derby/
+metastore_db/
+spark-warehouse/
+target/
+*.class
+*.jar
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Test/cache outputs
+reports/
+coverage.xml
+junit.xml
+
+# Do not ignore source manifests/examples
+!k8s/**/*.yaml
+!platform/**/*.yaml
+!config/**/*.yaml
