@@ -31,7 +31,7 @@ set -Eeuo pipefail
 #   ./setup.sh --domain banking --mission-control-license "Input"
 #
 # Optional:
-#   ./setup.sh --phase platform --domain banking
+#   ./setup.sh --phase platform --domain banking --mission-control-license "Input"
 #   ./setup.sh --phase domain --domain banking
 #   CLEAN_MC=true ./setup.sh              # deletes Mission Control namespace/release first
 #   CLEAN_DEMO_DB=true ./setup.sh         # deletes demo DB namespace first
@@ -99,6 +99,10 @@ PHASE="${PHASE:-all}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOMAIN_DIR=""
 DOMAIN_DESCRIPTOR=""
+DOMAIN_CONFIG=""
+
+# shellcheck source=common/schema_runner.sh
+source "$ROOT_DIR/common/schema_runner.sh"
 
 # ------------------------------------------------------------------------------
 # Helpers
@@ -126,7 +130,7 @@ Usage:
 
 Options:
   --domain <domain>                    Domain descriptor under domains/<domain>/domain.yaml.
-  --mission-control-license <license>  Mission Control / Replicated license ID.
+  --mission-control-license <license>  Mission Control / Replicated license ID for setup phases.
   --phase <phase>                      all, platform, or domain. Default: all.
   -h, --help                           Show this help.
 
@@ -180,13 +184,6 @@ parse_args() {
 }
 
 validate_args() {
-  case "$DOMAIN" in
-    ""|*/*|*..*|.*)
-      echo "Invalid domain: $DOMAIN"
-      exit 1
-      ;;
-  esac
-
   case "$PHASE" in
     all|platform|domain)
       ;;
@@ -199,12 +196,20 @@ validate_args() {
 
   DOMAIN_DIR="$ROOT_DIR/domains/$DOMAIN"
   DOMAIN_DESCRIPTOR="$DOMAIN_DIR/domain.yaml"
+  DOMAIN_CONFIG="$DOMAIN_DESCRIPTOR"
 
-  if [ ! -f "$DOMAIN_DESCRIPTOR" ]; then
-    echo "Domain descriptor not found: $DOMAIN_DESCRIPTOR"
-    echo "Create domains/$DOMAIN/domain.yaml or choose a supported domain."
+  if ! require_domain "$DOMAIN" "$ROOT_DIR"; then
     exit 1
   fi
+
+  if [ "$PHASE" != "domain" ] && [ -z "${MC_LICENSE_ID:-}" ]; then
+    echo "Missing required setup parameter: --mission-control-license"
+    usage
+    exit 1
+  fi
+
+  export DOMAIN
+  export DOMAIN_CONFIG
 }
 
 ask_if_empty() {
@@ -264,6 +269,9 @@ wait_for_iks_ready() {
 
 parse_args "$@"
 validate_args
+
+log "Loading domain configuration"
+print_domain_plan "$DOMAIN" "$ROOT_DIR"
 
 if [ "$PHASE" = "platform" ]; then
   CREATE_DEMO_DB="false"
