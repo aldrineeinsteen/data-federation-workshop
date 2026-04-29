@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
-set -x
 
 # ==============================================================================
 # HCD / Mission Control workshop setup on IBM Cloud IKS
@@ -29,13 +28,19 @@ set -x
 #
 # Usage:
 #   chmod +x setup.sh
-#   ./setup.sh
+#   ./setup.sh --domain banking --mission-control-license "Input"
 #
 # Optional:
+#   ./setup.sh --phase platform --domain banking
+#   ./setup.sh --phase domain --domain banking
 #   CLEAN_MC=true ./setup.sh              # deletes Mission Control namespace/release first
 #   CLEAN_DEMO_DB=true ./setup.sh         # deletes demo DB namespace first
 #   CREATE_DEMO_DB=false ./setup.sh       # skip demo DB creation
 # ==============================================================================
+
+if [ "${DEBUG:-false}" = "true" ]; then
+  set -x
+fi
 
 # ------------------------------------------------------------------------------
 # Defaults - override by exporting variables before running the script
@@ -89,6 +94,12 @@ ENV_FILE=".env.setup"
 COS_ENV_FILE=".env.cos"
 COS_HMAC_ENV_FILE=".env.cos.hmac"
 
+DOMAIN="${DOMAIN:-banking}"
+PHASE="${PHASE:-all}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOMAIN_DIR=""
+DOMAIN_DESCRIPTOR=""
+
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
@@ -104,6 +115,94 @@ need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing required command: $1"
     echo "Please install it and re-run."
+    exit 1
+  fi
+}
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ./setup.sh --domain banking --mission-control-license "Input" [--phase all|platform|domain]
+
+Options:
+  --domain <domain>                    Domain descriptor under domains/<domain>/domain.yaml.
+  --mission-control-license <license>  Mission Control / Replicated license ID.
+  --phase <phase>                      all, platform, or domain. Default: all.
+  -h, --help                           Show this help.
+
+Environment variables are still supported for existing workshop settings.
+Secrets belong in local .env.* files or Kubernetes Secrets, not in Git.
+USAGE
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --domain)
+        if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+          echo "Missing value for --domain"
+          usage
+          exit 1
+        fi
+        DOMAIN="$2"
+        shift 2
+        ;;
+      --mission-control-license)
+        if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+          echo "Missing value for --mission-control-license"
+          usage
+          exit 1
+        fi
+        MC_LICENSE_ID="$2"
+        export MC_LICENSE_ID
+        shift 2
+        ;;
+      --phase)
+        if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+          echo "Missing value for --phase"
+          usage
+          exit 1
+        fi
+        PHASE="$2"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown argument: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
+
+validate_args() {
+  case "$DOMAIN" in
+    ""|*/*|*..*|.*)
+      echo "Invalid domain: $DOMAIN"
+      exit 1
+      ;;
+  esac
+
+  case "$PHASE" in
+    all|platform|domain)
+      ;;
+    *)
+      echo "Invalid phase: $PHASE"
+      usage
+      exit 1
+      ;;
+  esac
+
+  DOMAIN_DIR="$ROOT_DIR/domains/$DOMAIN"
+  DOMAIN_DESCRIPTOR="$DOMAIN_DIR/domain.yaml"
+
+  if [ ! -f "$DOMAIN_DESCRIPTOR" ]; then
+    echo "Domain descriptor not found: $DOMAIN_DESCRIPTOR"
+    echo "Create domains/$DOMAIN/domain.yaml or choose a supported domain."
     exit 1
   fi
 }
@@ -162,6 +261,21 @@ wait_for_iks_ready() {
   echo "Timed out waiting for IKS workers."
   exit 1
 }
+
+parse_args "$@"
+validate_args
+
+if [ "$PHASE" = "platform" ]; then
+  CREATE_DEMO_DB="false"
+fi
+
+if [ "$PHASE" = "domain" ]; then
+  log "Domain deployment phase"
+  echo "Domain: $DOMAIN"
+  echo "Descriptor: $DOMAIN_DESCRIPTOR"
+  echo "Domain deployment manifests and jobs will be implemented in the next increment."
+  exit 0
+fi
 
 helm_install_or_upgrade() {
   local release="$1"
@@ -230,6 +344,9 @@ log "Collecting inputs"
 ask_if_empty "MC_LICENSE_ID" "Enter Mission Control / Replicated license ID" true
 
 echo "Using:"
+echo "DOMAIN=$DOMAIN"
+echo "PHASE=$PHASE"
+echo "DOMAIN_DESCRIPTOR=$DOMAIN_DESCRIPTOR"
 echo "REGION=$REGION"
 echo "ZONE=$ZONE"
 echo "RG=$RG"
@@ -247,6 +364,8 @@ echo "DEMO_NAMESPACE=$DEMO_NAMESPACE"
 echo "DEMO_STORAGE_CLASS=$DEMO_STORAGE_CLASS"
 
 cat > "$ENV_FILE" <<ENVEOF
+export DOMAIN="$DOMAIN"
+export PHASE="$PHASE"
 export REGION="$REGION"
 export ZONE="$ZONE"
 export RG="$RG"

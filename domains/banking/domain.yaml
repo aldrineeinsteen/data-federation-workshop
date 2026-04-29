@@ -1,0 +1,33 @@
+apiVersion: data-federation.demo/v1alpha1
+kind: Domain
+metadata:
+  name: banking
+  displayName: Banking
+  description: Multi-domain banking data federation demo.
+spec:
+  namespace: banking-demo
+  missionControl:
+    clusterName: banking-hcd
+    datacenterName: dc-1
+    rackName: rk-01
+  dataProducts:
+    - name: customers
+      source: hcd
+      description: Customer profile and relationship records.
+    - name: accounts
+      source: hcd
+      description: Account master data for operational lookups.
+    - name: transactions
+      source: iceberg
+      description: Transaction facts exposed through Presto.
+  connections:
+    cql:
+      secretName: banking-cql-credentials
+      configMapName: banking-cql-config
+    presto:
+      secretName: banking-presto-credentials
+      configMapName: banking-presto-config
+  ui:
+    title: Banking Data Federation
+    defaultView: overview
+

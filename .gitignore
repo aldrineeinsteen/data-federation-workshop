@@ -32,6 +32,7 @@ ENV/
 .env.*
 !.env.example
 !*.env.example
+!.env.*.example
 
 # IBM Cloud / generated credentials
 *.pem
@@ -54,6 +55,9 @@ service-credentials*.json
 
 # Kubernetes generated/rendered manifests
 mc-rendered.yaml
+mission-control-values.yaml
+demo-mc-cluster.yaml
+demo-cql-lb.yaml
 *-rendered.yaml
 rendered/
 .generated/
@@ -95,4 +99,11 @@ junit.xml
 # Do not ignore source manifests/examples
 !k8s/**/*.yaml
 !platform/**/*.yaml
+!domains/**/*.yaml
+!domains/**/*.cql
+!domains/**/*.sql
+!common/**/*.yaml
+!web/**/*
+!scripts/**/*
+!manifests/**/*.yaml
 !config/**/*.yaml
